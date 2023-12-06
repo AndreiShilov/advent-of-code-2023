@@ -15,7 +15,6 @@ fun main() {
 
     fun part1(input: List<String>): Long {
 
-
         val breaks = input.mapIndexedNotNull { index, line -> if (line.isEmpty()) index else null }.toList()
         // part 1
         val seedInput = input[0].substring(7).split(" ").map { it.toLong() }
@@ -43,21 +42,59 @@ fun main() {
     }
 
     fun part2(input: List<String>): Long {
+        val breaks = input.mapIndexedNotNull { index, line -> if (line.isEmpty()) index else null }.toList()
+        // part 1
+        val seedInput = input[0].substring(7)
+            .split(" ")
+            .map { it.toLong() }
+            .chunked(2)
+            .map { LongRange(it.first(), it.first() + it.last()) }
 
-        return 0
+        val seedsToSoil = input.subList(3, breaks[1]).map(::toAlmanacMapping)
+        val soilToFertilizer = input.subList(breaks[1] + 2, breaks[2]).map(::toAlmanacMapping)
+        val FertilizerToWater = input.subList(breaks[2] + 2, breaks[3]).map(::toAlmanacMapping)
+        val waterTolight = input.subList(breaks[3] + 2, breaks[4]).map(::toAlmanacMapping)
+        val lightToTemperature = input.subList(breaks[4] + 2, breaks[5]).map(::toAlmanacMapping)
+        val temperatureToHumidity = input.subList(breaks[5] + 2, breaks[6]).map(::toAlmanacMapping)
+        val humidityToLocation = input.subList(breaks[6] + 2, input.size).map(::toAlmanacMapping)
+
+
+        var min = Long.MAX_VALUE
+
+        for (range in seedInput) {
+            var rangeStart = range.first
+            val rangeEnd = range.last
+            println(range)
+            generateSequence(rangeStart) {
+                if (it < rangeEnd) it + 1
+                else null
+            }.forEach {
+                val location = it.process(seedsToSoil)
+                    .process(soilToFertilizer)
+                    .process(FertilizerToWater)
+                    .process(waterTolight)
+                    .process(lightToTemperature)
+                    .process(temperatureToHumidity)
+                    .process(humidityToLocation)
+
+                if (location < min) min = location
+            }
+        }
+
+        return min
     }
 
 
     val testInput = readInput("day5/Day05_test")
-    val part1 = part1(testInput)
-    part1.println()
+//    val part1 = part1(testInput)
+//    part1.println()
 
     val input = readInput("day5/Day05")
-    part1(input).println()
+//    part1(input).println()
 //
-//    val part2 = part2(testInput)
-//    println(part2)
-//    println(part2(input))
+    val part2 = part2(testInput)
+    println(part2)
+    println(part2(input))
 
 }
 
@@ -103,15 +140,17 @@ private fun List<Pair<Long, Long>>.findNextFromRange(mappings: List<AlmanacMappi
 }
 
 private fun List<Long>.findNext(mappings: List<AlmanacMapping>): List<Long> {
-    return this.map { inputValue ->
-        for (mapping in mappings) {
-            val start = mapping.sourceRangeStart
-            val range = mapping.rangeLength
-            if (inputValue >= start && inputValue <= start + range) {
-                return@map mapping.destinationRangeStart + inputValue - start
-            }
+    return this.map { inputValue -> inputValue.process(mappings) }
+}
+
+private fun Long.process(mappings: List<AlmanacMapping>): Long {
+    for (mapping in mappings) {
+        val start = mapping.sourceRangeStart
+        val range = mapping.rangeLength
+        if (this >= start && this <= start + range) {
+            return mapping.destinationRangeStart + this - start
         }
-        inputValue
     }
+    return this
 }
 
